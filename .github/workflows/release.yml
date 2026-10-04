@@ -1,0 +1,49 @@
+# Publishes the package to PyPI when a v* tag is pushed.
+#
+# **No stored token: Trusted Publishing.** PyPI trusts this workflow, in this
+# repository, under the `pypi` environment, through GitHub's OIDC token, so no
+# API token is created, kept or rotated. The trust is registered once on the
+# `saguin` project's Publishing settings on PyPI, naming this repository,
+# `release.yml` and `pypi`; renaming any of the three breaks it.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write   # the OIDC token PyPI checks; nothing else is granted
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      # **Checked before anything is built, because a version on PyPI can
+      # never be uploaded twice.** The tag, pyproject.toml and __version__
+      # must all say the same thing, or the release stops here.
+      - name: the tag is the package's version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          mod=$(sed -nE 's/^__version__ = "([^"]+)"$/\1/p' src/saguin/__init__.py)
+          echo "tag $tag, pyproject.toml $pkg, __version__ $mod"
+          if [ "$tag" != "$pkg" ] || [ "$tag" != "$mod" ]; then
+            echo "::error::the tag, pyproject.toml and __version__ disagree"
+            exit 1
+          fi
+
+      - name: build the sdist and the wheel
+        run: |
+          python3 -m pip install --upgrade build
+          python3 -m build
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
