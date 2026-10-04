@@ -1,0 +1,79 @@
+# The broker examples/demo.py runs against - an ordinary saguin
+# configuration, not a special one. Four channels and nothing else, so a
+# topic none of them claims is plain MQTT broadcast.
+#
+# The tour copies this file, replacing the address with a free port so it
+# cannot collide with a broker you are already running. Everything else is
+# used exactly as written here, and you can start a broker on it yourself:
+#
+#     saguin -config examples/saguin.yaml
+#
+broker:
+  id: demo
+  log_level: error
+
+  mqtt:
+    listen:
+      tcp:
+        address: 127.0.0.1:1883
+
+  storage:
+    # In memory and discarded at shutdown, which is right for a tour and
+    # wrong for anything else: give a memory provider a snapshot_dir to
+    # keep it across a graceful stop, or use type: sqlite with a file_path
+    # to keep it across a crash.
+    default: mem
+    default_retention_period: none
+    default_retention_bytes: none
+    providers:
+      - mem:
+          type: memory
+          snapshot_dir: none
+
+  retained:
+    storage: mem
+    retention_period: none
+
+  limits:
+    # Deliberately short, so the tour can show a client asking for a day
+    # and being told what it was actually granted.
+    max_session_expiry: 1h
+
+channels:
+  # A durable, replayable stream. Every reader keeps its own position, and
+  # reading consumes nothing.
+  #
+  # The braced level is a level with a fixed set of spellings rather than
+  # a wildcard - which is what lets a client compose a topic against this
+  # filter instead of guessing at one.
+  - readings:
+      type: append
+      filter: iot/+/{device,sensor}/#
+
+  # Current value per topic: a key-value store that survives restart. A
+  # publish replaces the value, a zero-length payload deletes it, and a
+  # subscriber is sent the current value of everything its filter reaches.
+  - state:
+      type: latest
+      filter: state/+/+
+
+  # Work handed to one worker at a time, with a gap that grows between
+  # attempts and a limit on how many a job gets. Past that limit it goes
+  # to tasks__dlq, which the broker derives and which must not be
+  # configured here.
+  - tasks:
+      type: queue
+      filter: work/+/jobs/+
+      visibility_timeout: 30s
+      retry:
+        max_attempts: 3
+        backoff: linear
+        backoff_base: 1s
+
+  # A schema registry is a `latest` channel and a convention: the schema
+  # text is the value, its topic is the identity, and a producer names
+  # that topic in a `schema` user property. Nothing in the broker knows
+  # this channel is special.
+  - schemas:
+      type: latest
+      filter: schemas/#

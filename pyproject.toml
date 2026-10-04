@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "saguin"
+version = "0.1.0"
+description = "A Python client library for interacting with the Saguin MQTT 5 broker - a thin layer over Eclipse Paho"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Italo Nesi" }]
+keywords = ["mqtt", "saguin", "iot", "queue", "broker"]
+
+# 3.9 is what a long-term-support edge box still has, and nothing here
+# needs newer syntax.
+requires-python = ">=3.9"
+
+# Pinned to a major because paho 2.0 changed the callback signatures, and
+# nothing else in the core: a dependency an edge box has to install is a
+# reason not to install the SDK.
+dependencies = ["paho-mqtt>=2.0,<3"]
+
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Communications",
+]
+
+[project.urls]
+Homepage = "https://github.com/ifnesi/saguin-python"
+Source = "https://github.com/ifnesi/saguin-python"
+Issues = "https://github.com/ifnesi/saguin-python/issues"
+
+[project.optional-dependencies]
+# Decoding a payload through its schema needs a library per encoding, and
+# the core stays paho-only: an edge box that publishes bytes should not
+# install a protobuf compiler to do it.
+avro = ["fastavro>=1.9"]
+protobuf = ["grpcio-tools>=1.60", "protobuf>=4"]
+test = ["pytest>=7", "fastavro>=1.9", "grpcio-tools>=1.60", "protobuf>=4"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# An exception raised out of the garbage collector is a warning by
+# default, which means a suite can go green over one for ever.  Two of
+# them have already been written here - a refusal raised before paho's
+# own constructor leaves an object whose __del__ has nothing to work
+# with - so this class of defect fails the run instead.
+filterwarnings = ["error::pytest.PytestUnraisableExceptionWarning"]

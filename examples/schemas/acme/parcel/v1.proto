@@ -1,0 +1,12 @@
+// A parcel to pack. Registered at schemas/acme/parcel/v1.
+//
+// One message per schema topic is the convention: the pointer is a whole
+// topic, so a schema holds the one thing that topic names. Where a file
+// defines several, the reader says so rather than guessing between them.
+syntax = "proto3";
+
+message Parcel {
+  string order = 1;
+  int32 items = 2;
+  string destination = 3;
+}

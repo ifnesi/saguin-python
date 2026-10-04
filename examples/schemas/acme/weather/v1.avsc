@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "Reading",
+  "doc": "A temperature reading from one site. Registered at schemas/acme/weather/v1 - the topic is the identity, so v2 is a new file beside this one rather than an edit to it.",
+  "fields": [
+    {"name": "site", "type": "string"},
+    {"name": "temp", "type": "double"}
+  ]
+}
